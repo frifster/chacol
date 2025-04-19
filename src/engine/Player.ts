@@ -10,9 +10,14 @@ export class Player {
     private inventory: Inventory;
     private equipment: Equipment;
     private moveSpeed: number = 5;
-    private jumpForce: number = 10;
+    private jumpForce: number = 5;
     private isGrounded: boolean = false;
     private isJumping: boolean = false;
+    private moveForce: number = 10;
+    private rotationSpeed: number = 0.1;
+    private targetRotation: number = 0;
+    private initialJumpY: number = 0;
+    private maxJumpHeight: number = 5;
 
     constructor(
         scene: THREE.Scene,
@@ -27,9 +32,14 @@ export class Player {
         scene.add(this.mesh);
 
         // Create physics body
-        this.body = physicsManager.createBox(this.mesh, 1);
-        this.body.linearDamping = 0.9;
-        this.body.angularDamping = 0.9;
+        const playerMaterial = new CANNON.Material('playerMaterial');
+        playerMaterial.friction = 0.3;
+        playerMaterial.restitution = 0.2;
+
+        this.body = physicsManager.createBox(this.mesh, 1, playerMaterial);
+        this.body.linearDamping = 0.3;
+        this.body.angularDamping = 0.3;
+        this.body.fixedRotation = true;
 
         // Initialize stats
         this.stats = new PlayerStats();
@@ -48,6 +58,9 @@ export class Player {
             ray.set(this.mesh.position, new THREE.Vector3(0, -1, 0));
             const intersects = ray.intersectObjects(this.mesh.parent?.children || []);
             this.isGrounded = intersects.length > 0 && intersects[0].distance < 1.1;
+            if (this.isGrounded) {
+                this.initialJumpY = this.mesh.position.y;
+            }
         };
 
         // Check for ground every frame
@@ -55,7 +68,13 @@ export class Player {
     }
 
     public update(deltaTime: number, input: PlayerInput): void {
-        // Handle movement
+        // Handle rotation based on mouse movement
+        if (input.mouseDeltaX !== 0) {
+            this.targetRotation -= input.mouseDeltaX * this.rotationSpeed;
+            this.mesh.rotation.y = this.targetRotation;
+        }
+
+        // Handle movement relative to player's rotation
         const moveDirection = new THREE.Vector3();
         
         if (input.forward) moveDirection.z -= 1;
@@ -63,17 +82,58 @@ export class Player {
         if (input.left) moveDirection.x -= 1;
         if (input.right) moveDirection.x += 1;
 
-        moveDirection.normalize();
-        moveDirection.multiplyScalar(this.moveSpeed * deltaTime);
+        if (moveDirection.length() > 0) {
+            moveDirection.normalize();
+            
+            // Rotate movement direction based on player's rotation
+            moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.targetRotation);
+            
+            // Calculate target velocity
+            const targetVelocity = new CANNON.Vec3(
+                moveDirection.x * this.moveSpeed,
+                0, // Keep vertical velocity at 0 during movement
+                moveDirection.z * this.moveSpeed
+            );
 
-        // Apply movement to physics body
-        this.body.velocity.x = moveDirection.x;
-        this.body.velocity.z = moveDirection.z;
+            // Calculate force needed to reach target velocity
+            const currentVelocity = this.body.velocity;
+            const force = new CANNON.Vec3(
+                (targetVelocity.x - currentVelocity.x) * this.moveForce,
+                0, // No vertical force during movement
+                (targetVelocity.z - currentVelocity.z) * this.moveForce
+            );
+
+            // Apply force
+            this.body.applyForce(force, this.body.position);
+
+            // Maintain constant height during movement
+            if (!this.isJumping) {
+                const currentPosition = this.body.position;
+                this.body.position.set(
+                    currentPosition.x,
+                    this.initialJumpY, // Keep at initial height
+                    currentPosition.z
+                );
+                this.body.velocity.y = 0; // Reset vertical velocity
+            }
+        }
 
         // Handle jumping
         if (input.jump && this.isGrounded) {
-            this.body.velocity.y = this.jumpForce;
+            const jumpForce = new CANNON.Vec3(0, this.jumpForce * 0.5, 0);
+            this.body.applyImpulse(jumpForce, this.body.position);
             this.isGrounded = false;
+            this.initialJumpY = this.mesh.position.y;
+        }
+
+        // Limit jump height
+        if (this.isJumping && !this.isGrounded) {
+            const currentHeight = this.mesh.position.y - this.initialJumpY;
+            if (currentHeight >= this.maxJumpHeight) {
+                // Apply downward force to limit height
+                const downwardForce = new CANNON.Vec3(0, -this.jumpForce * 20, 0);
+                this.body.applyForce(downwardForce, this.body.position);
+            }
         }
 
         // Update stats
@@ -82,7 +142,13 @@ export class Player {
         // Update player state
         if (this.mesh.position.y < 0.5) {
             this.isJumping = false;
+            this.isGrounded = true;
+            this.initialJumpY = 0.5; // Reset to ground level
         }
+
+        // Sync mesh position with physics body
+        this.mesh.position.copy(this.body.position as any);
+        this.mesh.quaternion.copy(this.body.quaternion as any);
     }
 
     public getMesh(): THREE.Mesh {
@@ -113,11 +179,9 @@ export class Player {
     public jump() {
         if (!this.isJumping) {
             this.isJumping = true;
-            // Apply jump force through physics
-            const body = this.mesh.userData.physicsBody;
-            if (body) {
-                body.applyImpulse(new CANNON.Vec3(0, this.jumpForce, 0));
-            }
+            const jumpForce = new CANNON.Vec3(0, this.jumpForce * 50, 0);
+            this.body.applyImpulse(jumpForce, this.body.position);
+            this.initialJumpY = this.mesh.position.y;
         }
     }
 }
@@ -190,4 +254,5 @@ export interface PlayerInput {
     left: boolean;
     right: boolean;
     jump: boolean;
+    mouseDeltaX: number;
 } 

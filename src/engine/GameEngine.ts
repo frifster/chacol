@@ -11,6 +11,7 @@ export class GameEngine {
     private player: Player;
     private inputManager: InputManager;
     private isRunning: boolean = false;
+    private hudElement!: HTMLDivElement;
 
     constructor() {
         this.sceneManager = new SceneManager();
@@ -27,6 +28,39 @@ export class GameEngine {
         const camera = this.sceneManager.getCamera();
         camera.position.set(0, 5, 10);
         camera.lookAt(this.player.getMesh().position);
+
+        // Create HUD
+        this.createHUD();
+    }
+
+    private createHUD(): void {
+        // Create HUD container
+        this.hudElement = document.createElement('div');
+        this.hudElement.style.position = 'absolute';
+        this.hudElement.style.top = '80px';
+        this.hudElement.style.left = '20px';
+        this.hudElement.style.color = 'white';
+        this.hudElement.style.fontFamily = 'Arial, sans-serif';
+        this.hudElement.style.fontSize = '16px';
+        this.hudElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        this.hudElement.style.padding = '10px';
+        this.hudElement.style.borderRadius = '5px';
+        
+        // Add HUD to the game container
+        const gameContainer = document.querySelector('.game-container');
+        if (gameContainer) {
+            gameContainer.appendChild(this.hudElement);
+        }
+    }
+
+    private updateHUD(): void {
+        const position = this.player.getMesh().position;
+        this.hudElement.innerHTML = `
+            Position: <br>
+            X: ${position.x.toFixed(2)} <br>
+            Y: ${position.y.toFixed(2)} <br>
+            Z: ${position.z.toFixed(2)}
+        `;
     }
 
     public start(): void {
@@ -100,6 +134,9 @@ export class GameEngine {
         camera.position.x = playerPos.x;
         camera.position.z = playerPos.z + 10;
         camera.lookAt(playerPos);
+
+        // Update HUD
+        this.updateHUD();
     }
 
     public getSceneManager(): SceneManager {

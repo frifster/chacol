@@ -51,7 +51,8 @@ export class InputManager {
             backward: this.keys.has('s'),
             left: this.keys.has('a'),
             right: this.keys.has('d'),
-            jump: this.keys.has(' ')
+            jump: this.keys.has(' '),
+            mouseDeltaX: this.mouseDelta.x
         };
     }
 
