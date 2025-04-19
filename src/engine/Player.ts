@@ -33,7 +33,7 @@ export class Player {
         position: THREE.Vector3 = new THREE.Vector3(0, 2, 0)
     ) {
         // Create player mesh with emissive material for better visibility
-        const geometry = new THREE.BoxGeometry(1, 2, 1);
+        const geometry = new THREE.BoxGeometry(1, 2, 1); // Ensure depth is 1
         const material = new THREE.MeshStandardMaterial({ 
             color: 0x00ff00,
             emissive: 0x003300,
@@ -42,6 +42,7 @@ export class Player {
             roughness: 0.5
         });
         this.mesh = new THREE.Mesh(geometry, material);
+        position.z = 0; // Force Z position to 0
         this.mesh.position.copy(position);
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
@@ -51,23 +52,41 @@ export class Player {
         const playerMaterial = physicsManager.getMaterial('player');
 
         // Create physics body with the same dimensions as the mesh
-        const shape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.5)); // Half-dimensions
+        const shape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.5));
         this.body = new CANNON.Body({
             mass: 1,
             material: playerMaterial,
             shape: shape,
-            position: new CANNON.Vec3(position.x, position.y, position.z),
+            position: new CANNON.Vec3(position.x, position.y, 0), // Force Z to 0
             fixedRotation: true,
             collisionFilterGroup: COLLISION_GROUPS.PLAYER,
             collisionFilterMask: COLLISION_GROUPS.ENEMY | COLLISION_GROUPS.WORLD
         });
 
-        // Store reference to player in the body's userData
+        // Store reference to player in the body's userData for collision handling
         (this.body as any).userData = { player: this };
 
-        // Set physics properties
+        // Set physics properties for better collision response
         this.body.linearDamping = 0.5;
         this.body.angularDamping = 1.0;
+
+        // Add collision event listener for debugging
+        this.body.addEventListener('collide', (event: any) => {
+            console.log('Player collision detected');  // Debug log
+            const otherBody = event.contact.bj === this.body ? event.contact.bi : event.contact.bj;
+            console.log('Collided with body group:', otherBody.collisionFilterGroup);  // Debug log
+            
+            if (otherBody.collisionFilterGroup === COLLISION_GROUPS.ENEMY) {
+                console.log('Enemy collision confirmed');  // Debug log
+                // Flash the player red to indicate damage
+                const material = this.mesh.material as THREE.MeshStandardMaterial;
+                const originalColor = material.color.getHex();
+                material.color.setHex(0xff0000);
+                setTimeout(() => {
+                    material.color.setHex(originalColor);
+                }, 100);
+            }
+        });
 
         // Add body to physics world
         physicsManager.getWorld().addBody(this.body);

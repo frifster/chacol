@@ -41,7 +41,7 @@ export class Enemy {
         this.stats = this.getStatsForType(type);
 
         // Create enemy mesh with adjusted dimensions for 2D side view
-        const geometry = new THREE.BoxGeometry(1, 2, 0.1);
+        const geometry = new THREE.BoxGeometry(1, 2, 1); // Changed depth to 1 to match player
         const material = new THREE.MeshStandardMaterial({ 
             color: this.getColorForType(type),
             emissive: this.getColorForType(type),
@@ -51,36 +51,37 @@ export class Enemy {
         });
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.position.copy(position);
+        this.mesh.position.z = 0; // Ensure enemy is on same Z-plane as player
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
         scene.add(this.mesh);
 
         // Create physics body with adjusted dimensions
-        const enemyMaterial = new CANNON.Material('enemyMaterial');
-        enemyMaterial.friction = 0.5;
-        enemyMaterial.restitution = 0.0;
-
-        const shape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.05));
+        const enemyMaterial = physicsManager.getMaterial('world');
+        const shape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.5)); // Changed depth to match player
         this.body = new CANNON.Body({
             mass: 0,
             material: enemyMaterial,
             shape: shape,
-            position: new CANNON.Vec3(position.x, position.y, position.z),
+            position: new CANNON.Vec3(position.x, position.y, 0), // Ensure Z is 0
             fixedRotation: true,
-            type: CANNON.Body.KINEMATIC,
+            type: CANNON.Body.STATIC,
             collisionFilterGroup: COLLISION_GROUPS.ENEMY,
             collisionFilterMask: COLLISION_GROUPS.PLAYER
         });
 
-        // Set physics properties
-        this.body.linearDamping = 0.5;
-        this.body.angularDamping = 1.0;
-
-        // Add collision event listener
+        // Set up collision event handling
         this.body.addEventListener('collide', (event: any) => {
-            const otherBody = event.body;
+            console.log('Enemy collision detected');
+            const otherBody = event.contact.bj === this.body ? event.contact.bi : event.contact.bj;
+            console.log('Other body group:', otherBody.collisionFilterGroup);
             if (otherBody.collisionFilterGroup === COLLISION_GROUPS.PLAYER) {
-                this.handlePlayerCollision(otherBody.userData?.player);
+                console.log('Player collision confirmed');
+                const player = (otherBody as any).userData?.player;
+                if (player) {
+                    console.log('Player reference found, applying damage');
+                    this.handlePlayerCollision(player);
+                }
             }
         });
 
@@ -104,28 +105,28 @@ export class Enemy {
                 return {
                     health: 50,
                     maxHealth: 50,
-                    damage: 10,
+                    damage: 20,
                     speed: 2
                 };
             case 'large':
                 return {
                     health: 100,
                     maxHealth: 100,
-                    damage: 20,
+                    damage: 35,
                     speed: 1
                 };
             case 'boss':
                 return {
                     health: 200,
                     maxHealth: 200,
-                    damage: 30,
+                    damage: 50,
                     speed: 1.5
                 };
             default:
                 return {
                     health: 50,
                     maxHealth: 50,
-                    damage: 10,
+                    damage: 20,
                     speed: 2
                 };
         }
@@ -145,10 +146,6 @@ export class Enemy {
     }
 
     public update(deltaTime: number): void {
-        // Update enemy position based on physics
-        this.mesh.position.copy(this.body.position as unknown as THREE.Vector3);
-        this.mesh.quaternion.copy(this.body.quaternion as unknown as THREE.Quaternion);
-
         // Simple patrol movement
         const currentX = this.body.position.x;
         const distanceFromStart = Math.abs(currentX - this.startX);
@@ -158,10 +155,14 @@ export class Enemy {
             this.moveDirection *= -1;
         }
 
-        // Apply movement directly to position since it's kinematic
+        // Calculate new position
         const newX = currentX + (this.moveDirection * this.stats.speed * deltaTime);
+        
+        // Update both body and mesh positions
         this.body.position.x = newX;
         this.body.position.y = 0.5; // Keep it at floor level
+        this.body.position.z = 0; // Ensure Z stays at 0
+        this.mesh.position.copy(this.body.position as unknown as THREE.Vector3);
     }
 
     public takeDamage(amount: number): void {
@@ -195,7 +196,12 @@ export class Enemy {
 
         // Apply damage to player
         const playerStats = player.getStats();
+        const currentHealth = playerStats.getHealth();
         playerStats.takeDamage(this.stats.damage);
+        const newHealth = playerStats.getHealth();
+        
+        console.log('Player Health: Before =', currentHealth, 'After =', newHealth, 'Damage =', this.stats.damage);
+        
         this.lastPlayerCollisionTime = currentTime;
 
         // Apply knockback to player
@@ -208,8 +214,8 @@ export class Enemy {
         }
 
         // Check for player death
-        if (playerStats.getHealth() <= 0) {
-            // Trigger game over through the player
+        if (newHealth <= 0) {
+            console.log('Player died! Health reached 0');
             player.die();
         }
     }

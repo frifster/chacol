@@ -21,13 +21,16 @@ export const HUD: React.FC<HUDProps> = ({ stats, isGameLoaded }) => {
             <div className="absolute top-4 right-4 bg-black bg-opacity-50 p-4 rounded-lg">
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
-                        <div className="w-32 h-2 bg-gray-700 rounded-full">
+                        <div className="w-24 text-right">Health:</div>
+                        <div className="flex-1 h-4 bg-gray-700 rounded-full overflow-hidden">
                             <div 
-                                className="h-full bg-red-500 rounded-full transition-all duration-300"
-                                style={{ width: `${stats.getHealth()}%` }}
+                                className="h-full bg-red-500 transition-all duration-300"
+                                style={{ width: `${(stats.getHealth() / stats.getMaxHealth()) * 100}%` }}
                             />
                         </div>
-                        <span className="text-white text-sm">Health</span>
+                        <div className="w-16 text-right text-sm text-white">
+                            {Math.floor(stats.getHealth())}/{stats.getMaxHealth()}
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-32 h-2 bg-gray-700 rounded-full">

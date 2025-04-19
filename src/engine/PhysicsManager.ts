@@ -25,18 +25,38 @@ export class PhysicsManager {
             playerMaterial: new CANNON.Material('playerMaterial')
         };
 
-        // Create default contact material
+        // Create default contact material with better collision response
         const defaultContact = new CANNON.ContactMaterial(
             this.materials.worldMaterial,
             this.materials.playerMaterial,
             {
-                friction: 0.01,  // Reduced friction for much smoother movement
+                friction: 0.01,
                 restitution: 0.0,
                 contactEquationStiffness: 1e8,
                 contactEquationRelaxation: 3
             }
         );
+
+        // Create contact material between player and enemy
+        const playerEnemyContact = new CANNON.ContactMaterial(
+            this.materials.playerMaterial,
+            new CANNON.Material('enemyMaterial'),
+            {
+                friction: 0.0,
+                restitution: 0.0,
+                contactEquationStiffness: 1e8,
+                contactEquationRelaxation: 3,
+                contactEquationRegularizationTime: 3
+            }
+        );
+
         this.world.addContactMaterial(defaultContact);
+        this.world.addContactMaterial(playerEnemyContact);
+
+        // Configure world for better collision detection
+        this.world.broadphase = new CANNON.NaiveBroadphase();
+        this.world.solver.iterations = 20;
+        this.world.solver.tolerance = 0.001;
     }
 
     public getWorld(): World {
