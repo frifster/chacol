@@ -3,8 +3,8 @@ import Footer from './components/Footer'
 import Navbar from './components/Navbar'
 import About from './pages/About'
 import Community from './pages/Community'
-import Download from './pages/Download'
 import Events from './pages/Events'
+import Game from './pages/Game'
 import Gameplay from './pages/Gameplay'
 import Graphics from './pages/Graphics'
 import Home from './pages/Home'
@@ -25,9 +25,9 @@ function App() {
           <Route path="/community" element={<Community />} />
           <Route path="/news" element={<News />} />
           <Route path="/support" element={<Support />} />
-          <Route path="/download" element={<Download />} />
           <Route path="/merchandise" element={<Merchandise />} />
           <Route path="/events" element={<Events />} />
+          <Route path="/game" element={<Game />} />
         </Routes>
       </main>
       <Footer />

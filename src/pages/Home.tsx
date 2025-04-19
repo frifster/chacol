@@ -39,7 +39,7 @@ const Home = () => {
           and face formidable challenges in this immersive 3D dungeon crawler.
         </p>
         <div className="flex flex-col md:flex-row gap-4">
-          <Link to="/download" className="btn-primary">
+          <Link to="/game" className="btn-primary">
             Play Now
           </Link>
           <Link to="/about" className="btn-primary bg-opacity-50">
