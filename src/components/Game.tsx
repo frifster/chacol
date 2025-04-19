@@ -11,6 +11,20 @@ export const Game: React.FC = () => {
         gameEngineRef.current = new GameEngine();
         gameEngineRef.current.start();
 
+        // Game loop
+        let lastTime = performance.now();
+        const gameLoop = (currentTime: number) => {
+            const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+            lastTime = currentTime;
+
+            if (gameEngineRef.current) {
+                gameEngineRef.current.update(deltaTime);
+            }
+
+            requestAnimationFrame(gameLoop);
+        };
+        requestAnimationFrame(gameLoop);
+
         // Handle ESC key to exit
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
