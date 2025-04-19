@@ -1,30 +1,10 @@
-import { Environment, OrbitControls } from '@react-three/drei'
-import { Canvas } from '@react-three/fiber'
-import { Suspense } from 'react'
 import { Link } from 'react-router-dom'
-
-const DungeonScene = () => {
-  return (
-    <Canvas camera={{ position: [0, 2, 5], fov: 50 }}>
-      <Suspense fallback={null}>
-        <Environment preset="night" />
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} />
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[1, 1, 1]} />
-          <meshStandardMaterial color="#8b4513" />
-        </mesh>
-        <OrbitControls />
-      </Suspense>
-    </Canvas>
-  )
-}
 
 const Home = () => {
   return (
     <div className="relative h-screen">
       <div className="absolute inset-0 z-0">
-        <DungeonScene />
+        {/* <DungeonScene /> */}
       </div>
       
       <div className="relative z-10 container mx-auto px-4 h-full flex flex-col justify-center items-center text-center">
