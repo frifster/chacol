@@ -16,6 +16,10 @@ export class PhysicsManager {
         this.meshes = new Map();
     }
 
+    public getWorld(): World {
+        return this.world;
+    }
+
     setPlayer(player: Player) {
         this.player = player;
     }

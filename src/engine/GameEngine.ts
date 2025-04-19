@@ -1,3 +1,4 @@
+import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
 import { InputManager } from './InputManager';
 import { PhysicsManager } from './PhysicsManager';
@@ -50,7 +51,31 @@ export class GameEngine {
         ground.position.y = -1;
         
         this.sceneManager.add(ground);
-        this.physicsManager.createBox(ground, 0);
+
+        // Create physics materials
+        const groundPhysicsMaterial = new CANNON.Material('groundMaterial');
+        const playerPhysicsMaterial = new CANNON.Material('playerMaterial');
+
+        // Create contact material between ground and player
+        const groundPlayerContactMaterial = new CANNON.ContactMaterial(
+            groundPhysicsMaterial,
+            playerPhysicsMaterial,
+            {
+                friction: 0.5,
+                restitution: 0.3
+            }
+        );
+        this.physicsManager.getWorld().addContactMaterial(groundPlayerContactMaterial);
+
+        // Create ground physics body
+        const groundBody = new CANNON.Body({
+            mass: 0, // Static body
+            material: groundPhysicsMaterial,
+            shape: new CANNON.Plane()
+        });
+        groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        groundBody.position.set(0, -1, 0);
+        this.physicsManager.getWorld().addBody(groundBody);
 
         // Request pointer lock for mouse control
         this.inputManager.requestPointerLock();
