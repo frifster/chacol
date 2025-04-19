@@ -10,9 +10,13 @@ export class Player {
     private inventory: Inventory;
     private equipment: Equipment;
     private moveSpeed: number = 10;
-    private jumpForce: number = 3;
+    private jumpForce: number = 5;
     private isGrounded: boolean = false;
     private moveForce: number = 100;
+    private hasDoubleJump: boolean = false;
+    private doubleJumpCooldown: number = 0;
+    private doubleJumpCooldownDuration: number = 0.2;
+    private jumpPressed: boolean = false; // Track if jump button is currently pressed
 
     constructor(
         scene: THREE.Scene,
@@ -92,6 +96,35 @@ export class Player {
             return;
         }
 
+        // Update double jump cooldown
+        if (this.doubleJumpCooldown > 0) {
+            this.doubleJumpCooldown -= deltaTime;
+        }
+
+        // Reset double jump when grounded
+        if (this.isGrounded) {
+            this.hasDoubleJump = true;
+        }
+
+        // Handle jumping
+        if (input.jump && !this.jumpPressed) {
+            this.jumpPressed = true;
+            if (this.isGrounded) {
+                // Regular jump
+                const jumpForce = new CANNON.Vec3(0, this.jumpForce * 25, 0);
+                this.body.applyImpulse(jumpForce, this.body.position);
+                this.isGrounded = false;
+            } else if (this.hasDoubleJump && this.doubleJumpCooldown <= 0) {
+                // Double jump
+                const jumpForce = new CANNON.Vec3(0, this.jumpForce * 20, 0);
+                this.body.applyImpulse(jumpForce, this.body.position);
+                this.hasDoubleJump = false;
+                this.doubleJumpCooldown = this.doubleJumpCooldownDuration;
+            }
+        } else if (!input.jump) {
+            this.jumpPressed = false;
+        }
+
         // Handle movement relative to player's rotation
         const moveDirection = new THREE.Vector3();
         
@@ -117,13 +150,6 @@ export class Player {
             this.body.velocity.x *= 0.8;
         }
 
-        // Handle jumping
-        if (input.jump && this.isGrounded) {
-            const jumpForce = new CANNON.Vec3(0, this.jumpForce * 15, 0);
-            this.body.applyImpulse(jumpForce, this.body.position);
-            this.isGrounded = false;
-        }
-
         // Limit maximum vertical velocity
         if (Math.abs(this.body.velocity.y) > 10) {
             this.body.velocity.y = Math.sign(this.body.velocity.y) * 10;
@@ -135,11 +161,18 @@ export class Player {
     }
 
     public getMesh(): THREE.Mesh {
-        console.log('Getting player mesh:', this.mesh); // Debug log
-        if (!this.mesh) {
-            throw new Error('Player mesh not initialized');
-        }
         return this.mesh;
+    }
+
+    public getBody(): CANNON.Body {
+        return this.body;
+    }
+
+    public resetState(): void {
+        this.isGrounded = false;
+        this.hasDoubleJump = false;
+        this.doubleJumpCooldown = 0;
+        this.jumpPressed = false;
     }
 
     public getStats(): PlayerStats {
