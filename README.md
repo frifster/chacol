@@ -1,11 +1,11 @@
 # Chacol: The Dungeon Chronicles
 
-A modern 3D dungeon crawler game website built with React, TypeScript, Three.js, and Tailwind CSS.
+A modern 2D dungeon crawler game website built with React, TypeScript, and Tailwind CSS.
 
 ## Features
 
 - Responsive design for all devices
-- Interactive 3D scenes using Three.js
+- Interactive 2D scenes
 - Modern UI with Tailwind CSS
 - Type-safe development with TypeScript
 - SEO optimized
@@ -16,8 +16,6 @@ A modern 3D dungeon crawler game website built with React, TypeScript, Three.js,
 
 - React 18
 - TypeScript
-- Three.js
-- React Three Fiber
 - Tailwind CSS
 - Vite
 - React Router
