@@ -12,10 +12,7 @@ export class Player {
     private moveSpeed: number = 10;
     private jumpForce: number = 3;
     private isGrounded: boolean = false;
-    private isJumping: boolean = false;
     private moveForce: number = 100;
-    private initialJumpY: number = 0;
-    private maxJumpHeight: number = 5;
 
     constructor(
         scene: THREE.Scene,
@@ -175,11 +172,10 @@ export class Player {
     }
 
     public jump() {
-        if (!this.isJumping) {
-            this.isJumping = true;
+        if (!this.isGrounded) {
             const jumpForce = new CANNON.Vec3(0, this.jumpForce * 0.5, 0);
             this.body.applyImpulse(jumpForce, this.body.position);
-            this.initialJumpY = this.mesh.position.y;
+            this.isGrounded = false;
         }
     }
 }
