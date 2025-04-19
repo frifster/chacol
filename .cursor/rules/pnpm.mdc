@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# USE PNPM For package manager
+ - use pnpm for install, remove and existing node modules
