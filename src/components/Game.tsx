@@ -11,11 +11,10 @@ export const Game: React.FC = () => {
     const [isGameLoaded, setIsGameLoaded] = useState(false);
     const [isGameOver, setIsGameOver] = useState(false);
     const [events, setEvents] = useState<string[]>([]);
-    const [gameState, setGameState] = useState<'playing' | 'over' | 'reset'>('playing');
 
     const addEvent = (event: string) => {
         const timestamp = new Date().toLocaleTimeString();
-        setEvents(prev => [`[${timestamp}] ${event}`, ...prev].slice(0, 50)); // Keep last 50 events
+        setEvents(prev => [`[${timestamp}] ${event}`, ...prev].slice(0, 50));
     };
 
     useEffect(() => {
@@ -28,7 +27,6 @@ export const Game: React.FC = () => {
         gameEngineRef.current.setGameOverCallback(() => {
             console.log('Game over callback triggered');
             setIsGameOver(true);
-            setGameState('over');
             addEvent('Game Over - Player fell into the abyss');
         });
         
@@ -46,8 +44,6 @@ export const Game: React.FC = () => {
             if (event.key === 'r' && isGameOver) {
                 gameEngineRef.current?.resetGame();
                 setIsGameOver(false);
-                setGameState('reset');
-                setTimeout(() => setGameState('playing'), 0); // Force re-render
                 addEvent('Game Restarted');
             }
         };
