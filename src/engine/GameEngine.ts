@@ -73,8 +73,10 @@ export class GameEngine {
         const world = new CANNON.World();
         world.gravity.set(0, -9.82, 0);
 
-        // Initialize managers
+        // Initialize physics manager
         this.physicsManager = new PhysicsManager(world);
+
+        // Initialize managers
         this.inputManager = new InputManager();
         this.dungeonManager = new DungeonManager(
             this.scene,
@@ -87,6 +89,11 @@ export class GameEngine {
         // Create player at a specific position
         const playerStartPosition = new THREE.Vector3(0, 5, 0);
         this.player = new Player(this.scene, this.physicsManager, playerStartPosition);
+        
+        // Set up player death handler
+        this.player.setOnDeath(() => {
+            this.handleGameOver();
+        });
 
         // Position camera to show player
         this.camera.position.set(playerStartPosition.x, playerStartPosition.y, 10);
@@ -140,7 +147,8 @@ export class GameEngine {
                 shape: floorShape,
                 position: new CANNON.Vec3(room.position.x, -0.5, 0),
                 collisionFilterGroup: COLLISION_GROUPS.WORLD,
-                collisionFilterMask: COLLISION_GROUPS.PLAYER
+                collisionFilterMask: COLLISION_GROUPS.PLAYER,
+                material: this.physicsManager.getMaterial('world')
             });
             this.physicsManager.getWorld().addBody(floorBody);
 
@@ -173,7 +181,8 @@ export class GameEngine {
                         0
                     ),
                     collisionFilterGroup: COLLISION_GROUPS.WORLD,
-                    collisionFilterMask: COLLISION_GROUPS.PLAYER
+                    collisionFilterMask: COLLISION_GROUPS.PLAYER,
+                    material: this.physicsManager.getMaterial('world')
                 });
                 this.physicsManager.getWorld().addBody(wallBody);
             }
@@ -198,7 +207,8 @@ export class GameEngine {
                 shape: corridorShape,
                 position: new CANNON.Vec3(midpoint.x, -0.5, 0),
                 collisionFilterGroup: COLLISION_GROUPS.WORLD,
-                collisionFilterMask: COLLISION_GROUPS.PLAYER
+                collisionFilterMask: COLLISION_GROUPS.PLAYER,
+                material: this.physicsManager.getMaterial('world')
             });
             this.physicsManager.getWorld().addBody(corridorBody);
         }
@@ -355,5 +365,63 @@ export class GameEngine {
 
         // Force a render to update the view
         this.renderer.render(this.scene, this.camera);
+    }
+
+    private handleGameOver(): void {
+        this.isGameOver = true;
+        
+        // Create game over overlay
+        const gameOverDiv = document.createElement('div');
+        gameOverDiv.style.position = 'absolute';
+        gameOverDiv.style.top = '50%';
+        gameOverDiv.style.left = '50%';
+        gameOverDiv.style.transform = 'translate(-50%, -50%)';
+        gameOverDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        gameOverDiv.style.color = 'white';
+        gameOverDiv.style.padding = '20px';
+        gameOverDiv.style.borderRadius = '10px';
+        gameOverDiv.style.textAlign = 'center';
+        gameOverDiv.style.fontFamily = 'Arial, sans-serif';
+        gameOverDiv.style.zIndex = '1000';
+
+        const gameOverText = document.createElement('h2');
+        gameOverText.textContent = 'Game Over';
+        gameOverText.style.margin = '0 0 20px 0';
+        gameOverDiv.appendChild(gameOverText);
+
+        const restartButton = document.createElement('button');
+        restartButton.textContent = 'Restart';
+        restartButton.style.padding = '10px 20px';
+        restartButton.style.fontSize = '16px';
+        restartButton.style.cursor = 'pointer';
+        restartButton.style.backgroundColor = '#4CAF50';
+        restartButton.style.border = 'none';
+        restartButton.style.borderRadius = '5px';
+        restartButton.style.color = 'white';
+        restartButton.onclick = () => this.restartGame(gameOverDiv);
+        gameOverDiv.appendChild(restartButton);
+
+        this.gameContainer.appendChild(gameOverDiv);
+    }
+
+    private restartGame(gameOverDiv: HTMLDivElement): void {
+        // Remove game over overlay
+        this.gameContainer.removeChild(gameOverDiv);
+        
+        // Reset game state
+        this.isGameOver = false;
+        
+        // Reset player
+        const playerStartPosition = new THREE.Vector3(0, 5, 0);
+        this.player.resetState();
+        this.player.updatePosition(playerStartPosition);
+        
+        // Reset camera
+        this.camera.position.set(playerStartPosition.x, playerStartPosition.y, 10);
+        this.camera.lookAt(playerStartPosition);
+        
+        // Regenerate dungeon
+        this.cleanup();
+        this.createDungeonEnvironment();
     }
 } 

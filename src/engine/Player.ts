@@ -16,7 +16,7 @@ export class Player {
     private stats: PlayerStats;
     private inventory: Inventory;
     private equipment: Equipment;
-    private moveSpeed: number = 10;
+    private moveSpeed: number = 30;
     private jumpForce: number = 5;
     private isGrounded: boolean = false;
     private moveForce: number = 100;
@@ -24,6 +24,8 @@ export class Player {
     private doubleJumpCooldown: number = 0;
     private doubleJumpCooldownDuration: number = 0.2;
     private jumpPressed: boolean = false; // Track if jump button is currently pressed
+    private isDead: boolean = false;
+    private onDeath?: () => void;
 
     constructor(
         scene: THREE.Scene,
@@ -46,9 +48,7 @@ export class Player {
         scene.add(this.mesh);
 
         // Create physics body
-        const playerMaterial = new CANNON.Material('playerMaterial');
-        playerMaterial.friction = 0.5;
-        playerMaterial.restitution = 0.0;
+        const playerMaterial = physicsManager.getMaterial('player');
 
         // Create physics body with the same dimensions as the mesh
         const shape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.5)); // Half-dimensions
@@ -59,7 +59,7 @@ export class Player {
             position: new CANNON.Vec3(position.x, position.y, position.z),
             fixedRotation: true,
             collisionFilterGroup: COLLISION_GROUPS.PLAYER,
-            collisionFilterMask: COLLISION_GROUPS.ENEMY | COLLISION_GROUPS.WORLD // Collide with both enemies and world
+            collisionFilterMask: COLLISION_GROUPS.ENEMY | COLLISION_GROUPS.WORLD
         });
 
         // Store reference to player in the body's userData
@@ -103,8 +103,7 @@ export class Player {
     }
 
     public update(deltaTime: number, input: PlayerInput): void {
-        if (!this.body || !this.mesh) {
-            console.error('Player body or mesh not initialized');
+        if (!this.body || !this.mesh || this.isDead) {
             return;
         }
 
@@ -147,19 +146,32 @@ export class Player {
             moveDirection.normalize();
             
             // Apply direct velocity for more responsive movement
-            this.body.velocity.x = moveDirection.x * this.moveSpeed;
+            const targetVelocity = moveDirection.x * this.moveSpeed;
+            
+            if (this.isGrounded) {
+                // More direct control when grounded
+                this.body.velocity.x = targetVelocity;
+            } else {
+                // Smoother acceleration in air
+                const currentVel = this.body.velocity.x;
+                const newVel = currentVel + (targetVelocity - currentVel) * 0.15;
+                this.body.velocity.x = newVel;
+            }
 
             // Apply additional force for acceleration
             const force = new CANNON.Vec3(
-                moveDirection.x * this.moveForce,
+                moveDirection.x * this.moveForce * (this.isGrounded ? 1.5 : 1),
                 0,
                 0
             );
 
             this.body.applyForce(force, this.body.position);
+        } else if (this.isGrounded) {
+            // Quick stop when grounded and not moving
+            this.body.velocity.x *= 0.5;
         } else {
-            // Apply friction when not moving
-            this.body.velocity.x *= 0.8;
+            // Slower air resistance when in air
+            this.body.velocity.x *= 0.98;
         }
 
         // Limit maximum vertical velocity
@@ -181,10 +193,28 @@ export class Player {
     }
 
     public resetState(): void {
+        this.isDead = false;
         this.isGrounded = false;
         this.hasDoubleJump = false;
         this.doubleJumpCooldown = 0;
         this.jumpPressed = false;
+        
+        // Reset health
+        this.stats = new PlayerStats();
+
+        // Reset material
+        if (this.mesh) {
+            const material = this.mesh.material as THREE.MeshStandardMaterial;
+            material.color.setHex(0x00ff00);
+            material.emissive.setHex(0x003300);
+        }
+
+        // Reset physics
+        if (this.body) {
+            this.body.type = CANNON.Body.DYNAMIC;
+            this.body.velocity.setZero();
+            this.body.angularVelocity.setZero();
+        }
     }
 
     public getStats(): PlayerStats {
@@ -222,6 +252,39 @@ export class Player {
             this.body.applyImpulse(jumpForce, this.body.position);
             this.isGrounded = false;
         }
+    }
+
+    public die(): void {
+        if (this.isDead) return;
+        
+        this.isDead = true;
+        
+        // Change material to indicate death
+        if (this.mesh) {
+            const material = this.mesh.material as THREE.MeshStandardMaterial;
+            material.color.setHex(0x444444); // Grey color
+            material.emissive.setHex(0x000000); // No emission
+        }
+
+        // Disable physics
+        if (this.body) {
+            this.body.type = CANNON.Body.STATIC;
+            this.body.velocity.setZero();
+            this.body.angularVelocity.setZero();
+        }
+
+        // Call death callback if set
+        if (this.onDeath) {
+            this.onDeath();
+        }
+    }
+
+    public setOnDeath(callback: () => void): void {
+        this.onDeath = callback;
+    }
+
+    public isDying(): boolean {
+        return this.isDead;
     }
 }
 

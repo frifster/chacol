@@ -194,7 +194,8 @@ export class Enemy {
         }
 
         // Apply damage to player
-        player.getStats().takeDamage(this.stats.damage);
+        const playerStats = player.getStats();
+        playerStats.takeDamage(this.stats.damage);
         this.lastPlayerCollisionTime = currentTime;
 
         // Apply knockback to player
@@ -204,6 +205,12 @@ export class Enemy {
             const direction = Math.sign(playerBody.position.x - this.body.position.x);
             playerBody.velocity.x = direction * knockbackForce;
             playerBody.velocity.y = knockbackForce / 2; // Small upward boost
+        }
+
+        // Check for player death
+        if (playerStats.getHealth() <= 0) {
+            // Trigger game over through the player
+            player.die();
         }
     }
 } 

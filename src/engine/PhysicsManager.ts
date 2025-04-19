@@ -9,11 +9,34 @@ export class PhysicsManager {
     private physicsBodies: Map<THREE.Object3D, CANNON.Body>;
     private meshes: Map<CANNON.Body, THREE.Object3D>;
     private player: Player | null = null;
+    private materials: {
+        worldMaterial: CANNON.Material;
+        playerMaterial: CANNON.Material;
+    };
 
     constructor(world: World) {
         this.world = world;
         this.physicsBodies = new Map();
         this.meshes = new Map();
+
+        // Initialize default materials
+        this.materials = {
+            worldMaterial: new CANNON.Material('worldMaterial'),
+            playerMaterial: new CANNON.Material('playerMaterial')
+        };
+
+        // Create default contact material
+        const defaultContact = new CANNON.ContactMaterial(
+            this.materials.worldMaterial,
+            this.materials.playerMaterial,
+            {
+                friction: 0.01,  // Reduced friction for much smoother movement
+                restitution: 0.0,
+                contactEquationStiffness: 1e8,
+                contactEquationRelaxation: 3
+            }
+        );
+        this.world.addContactMaterial(defaultContact);
     }
 
     public getWorld(): World {
@@ -181,5 +204,9 @@ export class PhysicsManager {
         playerBody.angularDamping = 0.5;
 
         return playerBody;
+    }
+
+    public getMaterial(type: 'world' | 'player'): CANNON.Material {
+        return type === 'world' ? this.materials.worldMaterial : this.materials.playerMaterial;
     }
 } 
