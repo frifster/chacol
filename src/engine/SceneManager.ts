@@ -35,6 +35,14 @@ export class SceneManager {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         
+        // Style the canvas
+        this.renderer.domElement.style.position = 'absolute';
+        this.renderer.domElement.style.top = '0';
+        this.renderer.domElement.style.left = '0';
+        this.renderer.domElement.style.width = '100%';
+        this.renderer.domElement.style.height = '100%';
+        this.renderer.domElement.style.zIndex = '0';
+        
         // Find the game container and append the canvas
         const gameContainer = document.querySelector('.game-container');
         if (gameContainer) {

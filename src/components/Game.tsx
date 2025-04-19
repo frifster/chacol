@@ -44,7 +44,7 @@ export const Game: React.FC = () => {
     }, [navigate]);
 
     return (
-        <div className="game-container absolute inset-0">
+        <div className="game-container w-full h-full">
             {/* The game canvas will be automatically added here by Three.js */}
         </div>
     );
