@@ -32,6 +32,9 @@ export const Game: React.FC = () => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             if (gameEngineRef.current) {
+                // Clean up game engine resources
+                gameEngineRef.current.cleanup();
+                
                 // Clean up Three.js resources
                 const container = containerRef.current;
                 if (container) {

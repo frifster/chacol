@@ -14,11 +14,24 @@ export class GameEngine {
     private hudElement!: HTMLDivElement;
     private lastTime: number = 0;
     private gameContainer: HTMLElement;
+    private torchIntervals: number[] = []; // Store intervals for cleanup
 
     constructor(container: HTMLElement) {
         this.gameContainer = container;
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x1a1a1a); // Dark background for dungeon
+        
+        // Simplified fog for better performance
+        this.scene.fog = new THREE.Fog(0x1a1a1a, 20, 100);
+
+        // Create skybox with gradient effect
+        const skyboxGeometry = new THREE.BoxGeometry(1000, 1000, 1000);
+        const skyboxMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x222233,
+            side: THREE.BackSide,
+            fog: false
+        });
+        const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+        this.scene.add(skybox);
 
         // Set up 2D orthographic camera
         const aspect = window.innerWidth / window.innerHeight;
@@ -33,11 +46,14 @@ export class GameEngine {
         this.camera.position.set(0, 0, 10);
         this.camera.lookAt(0, 0, 0);
 
-        // Set up renderer with shadows
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        // Optimize renderer settings
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: false, // Disable antialiasing for better performance
+            powerPreference: "high-performance"
+        });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.type = THREE.BasicShadowMap; // Use basic shadow map for better performance
         container.appendChild(this.renderer.domElement);
 
         // Create physics world
@@ -70,17 +86,16 @@ export class GameEngine {
     }
 
     private createDungeonEnvironment(): void {
-        // Create floor with stone pattern
+        // Create floor with enhanced material
         const floorGeometry = new THREE.PlaneGeometry(100, 100);
-        const floorMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x444444, // Dark gray
-            roughness: 0.8,
-            metalness: 0.2,
-            flatShading: true
+        const floorMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x444444,
+            shininess: 10,
+            specular: 0x222222
         });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
-        floor.position.y = 0; // Move floor to y=0
+        floor.position.y = 0;
         floor.receiveShadow = true;
         this.scene.add(floor);
 
@@ -108,77 +123,52 @@ export class GameEngine {
         );
         this.physicsManager.getWorld().addContactMaterial(groundPlayerContact);
 
-        // Create walls with brick-like pattern
-        const wallMaterial = new THREE.MeshStandardMaterial({
-            color: 0x553333, // Dark reddish-brown
-            roughness: 0.9,
-            metalness: 0.1,
-            flatShading: true
-        });
-
-        // Left wall
-        const leftWall = new THREE.Mesh(
-            new THREE.PlaneGeometry(100, 20),
-            wallMaterial.clone()
-        );
-        leftWall.position.set(-50, 10, 0); // Adjust wall height
-        leftWall.rotation.y = Math.PI / 2;
-        leftWall.castShadow = true;
-        leftWall.receiveShadow = true;
-        this.scene.add(leftWall);
-
-        // Right wall
-        const rightWall = new THREE.Mesh(
-            new THREE.PlaneGeometry(100, 20),
-            wallMaterial.clone()
-        );
-        rightWall.position.set(50, 10, 0); // Adjust wall height
-        rightWall.rotation.y = -Math.PI / 2;
-        rightWall.castShadow = true;
-        rightWall.receiveShadow = true;
-        this.scene.add(rightWall);
-
-        // Add decorative elements (pillars)
-        const pillarGeometry = new THREE.BoxGeometry(2, 15, 2);
-        const pillarMaterial = new THREE.MeshStandardMaterial({
-            color: 0x666666, // Gray
-            roughness: 0.7,
-            metalness: 0.3
-        });
-
-        // Add pillars along the walls
-        for (let x = -40; x <= 40; x += 20) {
-            // Left side pillars
-            const leftPillar = new THREE.Mesh(pillarGeometry, pillarMaterial.clone());
-            leftPillar.position.set(x, 7.5, -1); // Adjust pillar height
-            leftPillar.castShadow = true;
-            leftPillar.receiveShadow = true;
-            this.scene.add(leftPillar);
-
-            // Add torch light effect
-            const torchLight = new THREE.PointLight(0xff6633, 1, 20);
-            torchLight.position.set(x, 12, -1); // Adjust torch height
-            torchLight.castShadow = true;
-            this.scene.add(torchLight);
-
-            // Add torch glow effect
-            const torchGlow = new THREE.Mesh(
-                new THREE.SphereGeometry(0.3, 8, 8),
-                new THREE.MeshBasicMaterial({ color: 0xff6633 })
-            );
-            torchGlow.position.set(x, 12, -1); // Match torch light position
-            this.scene.add(torchGlow);
-        }
-
-        // Add ambient lighting
-        const ambientLight = new THREE.AmbientLight(0x333333, 0.5);
+        // Optimize lighting setup
+        const ambientLight = new THREE.AmbientLight(0x333333, 0.6);
         this.scene.add(ambientLight);
 
-        // Add directional light for general illumination
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.3);
-        directionalLight.position.set(0, 10, 10);
-        directionalLight.castShadow = true;
-        this.scene.add(directionalLight);
+        // Simplified hemisphere light
+        const hemisphereLight = new THREE.HemisphereLight(0x6688cc, 0x553333, 0.3);
+        this.scene.add(hemisphereLight);
+
+        // Optimize torch lights
+        const torchPositions = [-40, -20, 0, 20, 40]; // Reduced number of torches
+        torchPositions.forEach(x => {
+            // Create torch base with simplified geometry
+            const torchGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1, 6);
+            const torchMaterial = new THREE.MeshPhongMaterial({
+                color: 0x553322,
+                shininess: 30
+            });
+            const torch = new THREE.Mesh(torchGeometry, torchMaterial);
+            torch.position.set(x, 10, -1);
+            torch.castShadow = false; // Disable individual torch shadows
+            this.scene.add(torch);
+
+            // Simplified torch light
+            const torchLight = new THREE.PointLight(0xff6633, 1.5, 15);
+            torchLight.position.set(x, 12, -1);
+            torchLight.castShadow = false;
+            this.scene.add(torchLight);
+
+            // More efficient flickering with shared interval
+            const intensity = torchLight.intensity;
+            const intervalId = window.setInterval(() => {
+                torchLight.intensity = intensity * (0.95 + Math.random() * 0.1);
+            }, 100); // Reduced frequency of updates
+            this.torchIntervals.push(intervalId);
+
+            // Simplified torch glow
+            const glowGeometry = new THREE.SphereGeometry(0.3, 6, 6);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff6633,
+                transparent: true,
+                opacity: 0.4
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            glow.position.set(x, 12, -1);
+            this.scene.add(glow);
+        });
     }
 
     private createHUD(): void {
@@ -196,11 +186,6 @@ export class GameEngine {
     }
 
     private updateHUD(): void {
-        // Debug logging
-        console.log('Player:', this.player);
-        console.log('Player Mesh:', this.player?.getMesh());
-        console.log('Player Position:', this.player?.getMesh()?.position);
-
         const mesh = this.player?.getMesh();
         if (!mesh) {
             this.hudElement.textContent = 'Position: No player mesh';
@@ -231,36 +216,37 @@ export class GameEngine {
         const deltaTime = (currentTime - this.lastTime) / 1000;
         this.lastTime = currentTime;
 
-        // Debug logging
-        console.log('Game Loop - Player Position:', this.player?.getMesh()?.position);
-
         // Update physics
         this.physicsManager.update(deltaTime);
 
-        // Get input and update player
+        // Update player
         const input = this.inputManager.getPlayerInput();
         this.player.update(deltaTime, input);
 
-        // Update camera to follow player
+        // Update camera
         const playerMesh = this.player.getMesh();
         if (playerMesh) {
             this.camera.position.x = playerMesh.position.x;
             this.camera.position.y = playerMesh.position.y;
-            this.camera.position.z = 10; // Keep camera at fixed Z distance
+            this.camera.position.z = 10;
             this.camera.lookAt(playerMesh.position);
         }
 
-        // Update HUD
         this.updateHUD();
-
-        // Render scene
         this.renderer.render(this.scene, this.camera);
-
-        // Continue game loop
         requestAnimationFrame(() => this.gameLoop());
     }
 
     public getPlayer(): Player {
         return this.player;
+    }
+
+    // Add cleanup method
+    public cleanup(): void {
+        // Clear all torch intervals
+        this.torchIntervals.forEach(intervalId => {
+            clearInterval(intervalId);
+        });
+        this.torchIntervals = [];
     }
 } 
