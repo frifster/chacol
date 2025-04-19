@@ -1,15 +1,22 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GameEngine } from '../engine/GameEngine';
+import { HUD } from './HUD';
 
 export const Game: React.FC = () => {
     const gameEngineRef = useRef<GameEngine | null>(null);
     const navigate = useNavigate();
+    const [isGameLoaded, setIsGameLoaded] = useState(false);
 
     useEffect(() => {
         // Initialize game engine
         gameEngineRef.current = new GameEngine();
-        gameEngineRef.current.start();
+        
+        // Simulate loading time
+        setTimeout(() => {
+            gameEngineRef.current?.start();
+            setIsGameLoaded(true);
+        }, 2000);
 
         // Game loop
         let lastTime = performance.now();
@@ -17,7 +24,7 @@ export const Game: React.FC = () => {
             const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
             lastTime = currentTime;
 
-            if (gameEngineRef.current) {
+            if (gameEngineRef.current && isGameLoaded) {
                 gameEngineRef.current.update(deltaTime);
             }
 
@@ -41,11 +48,17 @@ export const Game: React.FC = () => {
                 gameEngineRef.current.stop();
             }
         };
-    }, [navigate]);
+    }, [navigate, isGameLoaded]);
 
     return (
         <div className="game-container w-full h-full">
             {/* The game canvas will be automatically added here by Three.js */}
+            {gameEngineRef.current && (
+                <HUD 
+                    stats={gameEngineRef.current.getPlayer().getStats()} 
+                    isGameLoaded={isGameLoaded}
+                />
+            )}
         </div>
     );
 }; 
