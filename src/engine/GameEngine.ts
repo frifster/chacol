@@ -5,6 +5,13 @@ import { InputManager } from './InputManager';
 import { PhysicsManager } from './PhysicsManager';
 import { Player } from './Player';
 
+// Define collision groups (matching Player.ts)
+const COLLISION_GROUPS = {
+    WORLD: 1,
+    ENEMY: 2,
+    PLAYER: 4
+};
+
 export class GameEngine {
     private scene: THREE.Scene;
     private camera: THREE.OrthographicCamera;
@@ -69,7 +76,10 @@ export class GameEngine {
         // Initialize managers
         this.physicsManager = new PhysicsManager(world);
         this.inputManager = new InputManager();
-        this.dungeonManager = new DungeonManager();
+        this.dungeonManager = new DungeonManager(
+            this.scene,
+            this.physicsManager
+        );
 
         // Create dungeon environment
         this.createDungeonEnvironment();
@@ -123,25 +133,21 @@ export class GameEngine {
             this.scene.add(floor);
             this.dungeonMeshes.push(floor);
 
-            // Add physics body for floor
+            // Add physics body for floor with collision groups
             const floorShape = new CANNON.Box(new CANNON.Vec3(room.width/2, 0.5, 0.5));
             const floorBody = new CANNON.Body({
                 mass: 0,
                 shape: floorShape,
-                position: new CANNON.Vec3(room.position.x, -0.5, 0)
+                position: new CANNON.Vec3(room.position.x, -0.5, 0),
+                collisionFilterGroup: COLLISION_GROUPS.WORLD,
+                collisionFilterMask: COLLISION_GROUPS.PLAYER
             });
             this.physicsManager.getWorld().addBody(floorBody);
 
-            // Create room walls (platforms)
-            const wallHeight = 5;
-            const wallThickness = 1;
-
-            // Create walls for each side
+            // Create walls for each side with collision groups
             const walls = [
-                // Left wall
-                { width: wallThickness, height: wallHeight, position: [-room.width/2, wallHeight/2, 0] },
-                // Right wall
-                { width: wallThickness, height: wallHeight, position: [room.width/2, wallHeight/2, 0] }
+                { width: 1, height: 5, position: [-room.width/2, 2.5, 0] },
+                { width: 1, height: 5, position: [room.width/2, 2.5, 0] }
             ];
 
             for (const wall of walls) {
@@ -157,7 +163,6 @@ export class GameEngine {
                 this.scene.add(wallMesh);
                 this.dungeonMeshes.push(wallMesh);
 
-                // Add physics body for wall
                 const wallShape = new CANNON.Box(new CANNON.Vec3(wall.width/2, wall.height/2, 0.5));
                 const wallBody = new CANNON.Body({
                     mass: 0,
@@ -166,19 +171,20 @@ export class GameEngine {
                         room.position.x + wall.position[0],
                         wall.position[1],
                         0
-                    )
+                    ),
+                    collisionFilterGroup: COLLISION_GROUPS.WORLD,
+                    collisionFilterMask: COLLISION_GROUPS.PLAYER
                 });
                 this.physicsManager.getWorld().addBody(wallBody);
             }
         }
 
-        // Create corridors (platforms)
+        // Create corridors with collision groups
         for (const corridor of dungeon.corridors) {
             const corridorLength = Math.abs(corridor.start.x - corridor.end.x);
             const corridorGeometry = new THREE.BoxGeometry(corridorLength, 1, 1);
             const corridorMesh = new THREE.Mesh(corridorGeometry, floorMaterial);
             
-            // Position corridor at midpoint
             const midpoint = new THREE.Vector3().addVectors(corridor.start, corridor.end).multiplyScalar(0.5);
             corridorMesh.position.set(midpoint.x, -0.5, 0);
             
@@ -186,17 +192,17 @@ export class GameEngine {
             this.scene.add(corridorMesh);
             this.dungeonMeshes.push(corridorMesh);
 
-            // Add physics body for corridor
             const corridorShape = new CANNON.Box(new CANNON.Vec3(corridorLength/2, 0.5, 0.5));
             const corridorBody = new CANNON.Body({
                 mass: 0,
                 shape: corridorShape,
-                position: new CANNON.Vec3(midpoint.x, -0.5, 0)
+                position: new CANNON.Vec3(midpoint.x, -0.5, 0),
+                collisionFilterGroup: COLLISION_GROUPS.WORLD,
+                collisionFilterMask: COLLISION_GROUPS.PLAYER
             });
             this.physicsManager.getWorld().addBody(corridorBody);
         }
 
-        // Set up lighting
         this.setupDungeonLighting(dungeon);
     }
 
@@ -276,6 +282,9 @@ export class GameEngine {
             // Update player
             const input = this.inputManager.getPlayerInput();
             this.player.update(deltaTime, input);
+
+            // Update enemies
+            this.dungeonManager.update(deltaTime);
 
             // Update camera to follow player
             if (playerMesh) {

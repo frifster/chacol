@@ -3,6 +3,13 @@ import * as THREE from 'three';
 import { PhysicsManager } from './PhysicsManager';
 import { PlayerStats } from './PlayerStats';
 
+// Define collision groups (matching Enemy.ts)
+const COLLISION_GROUPS = {
+    WORLD: 1,
+    ENEMY: 2,
+    PLAYER: 4
+};
+
 export class Player {
     private mesh: THREE.Mesh;
     private body: CANNON.Body;
@@ -50,8 +57,13 @@ export class Player {
             material: playerMaterial,
             shape: shape,
             position: new CANNON.Vec3(position.x, position.y, position.z),
-            fixedRotation: true
+            fixedRotation: true,
+            collisionFilterGroup: COLLISION_GROUPS.PLAYER,
+            collisionFilterMask: COLLISION_GROUPS.ENEMY | COLLISION_GROUPS.WORLD // Collide with both enemies and world
         });
+
+        // Store reference to player in the body's userData
+        (this.body as any).userData = { player: this };
 
         // Set physics properties
         this.body.linearDamping = 0.5;

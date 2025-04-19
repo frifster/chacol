@@ -1,6 +1,14 @@
 import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
 import { PhysicsManager } from '../../engine/PhysicsManager';
+import { Player } from '../../engine/Player';
+
+// Define collision groups (matching Player.ts and GameEngine.ts)
+const COLLISION_GROUPS = {
+    WORLD: 1,
+    ENEMY: 2,
+    PLAYER: 4
+};
 
 export class Enemy {
     private mesh: THREE.Mesh;
@@ -16,6 +24,8 @@ export class Enemy {
     private moveDirection: number = 1; // 1 for right, -1 for left
     private moveDistance: number = 5; // How far the enemy moves before changing direction
     private startX: number;
+    private lastPlayerCollisionTime: number = 0;
+    private damageInterval: number = 1; // Time in seconds between damage applications
 
     constructor(
         scene: THREE.Scene,
@@ -52,17 +62,27 @@ export class Enemy {
 
         const shape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.05));
         this.body = new CANNON.Body({
-            mass: 0, // Set mass to 0 to prevent falling
+            mass: 0,
             material: enemyMaterial,
             shape: shape,
             position: new CANNON.Vec3(position.x, position.y, position.z),
             fixedRotation: true,
-            type: CANNON.Body.KINEMATIC // Make it kinematic to prevent physics from affecting it
+            type: CANNON.Body.KINEMATIC,
+            collisionFilterGroup: COLLISION_GROUPS.ENEMY,
+            collisionFilterMask: COLLISION_GROUPS.PLAYER
         });
 
         // Set physics properties
         this.body.linearDamping = 0.5;
         this.body.angularDamping = 1.0;
+
+        // Add collision event listener
+        this.body.addEventListener('collide', (event: any) => {
+            const otherBody = event.body;
+            if (otherBody.collisionFilterGroup === COLLISION_GROUPS.PLAYER) {
+                this.handlePlayerCollision(otherBody.userData?.player);
+            }
+        });
 
         // Add body to physics world
         physicsManager.getWorld().addBody(this.body);
@@ -85,28 +105,28 @@ export class Enemy {
                     health: 50,
                     maxHealth: 50,
                     damage: 10,
-                    speed: 8
+                    speed: 2
                 };
             case 'large':
                 return {
                     health: 100,
                     maxHealth: 100,
                     damage: 20,
-                    speed: 5
+                    speed: 1
                 };
             case 'boss':
                 return {
                     health: 200,
                     maxHealth: 200,
                     damage: 30,
-                    speed: 6
+                    speed: 1.5
                 };
             default:
                 return {
                     health: 50,
                     maxHealth: 50,
                     damage: 10,
-                    speed: 8
+                    speed: 2
                 };
         }
     }
@@ -163,5 +183,27 @@ export class Enemy {
 
     public getStats() {
         return this.stats;
+    }
+
+    private handlePlayerCollision(player: Player): void {
+        if (!player) return;
+
+        const currentTime = performance.now() / 1000; // Convert to seconds
+        if (currentTime - this.lastPlayerCollisionTime < this.damageInterval) {
+            return; // Don't apply damage if not enough time has passed
+        }
+
+        // Apply damage to player
+        player.getStats().takeDamage(this.stats.damage);
+        this.lastPlayerCollisionTime = currentTime;
+
+        // Apply knockback to player
+        const playerBody = player.getBody();
+        if (playerBody) {
+            const knockbackForce = 5;
+            const direction = Math.sign(playerBody.position.x - this.body.position.x);
+            playerBody.velocity.x = direction * knockbackForce;
+            playerBody.velocity.y = knockbackForce / 2; // Small upward boost
+        }
     }
 } 
