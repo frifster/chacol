@@ -1,6 +1,7 @@
 import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
 import { PhysicsManager } from './PhysicsManager';
+import { PlayerStats } from './PlayerStats';
 
 export class Player {
     private mesh: THREE.Mesh;
@@ -9,8 +10,9 @@ export class Player {
     private inventory: Inventory;
     private equipment: Equipment;
     private moveSpeed: number = 5;
-    private jumpForce: number = 5;
+    private jumpForce: number = 10;
     private isGrounded: boolean = false;
+    private isJumping: boolean = false;
 
     constructor(
         scene: THREE.Scene,
@@ -76,6 +78,11 @@ export class Player {
 
         // Update stats
         this.stats.update(deltaTime);
+
+        // Update player state
+        if (this.mesh.position.y < 0.5) {
+            this.isJumping = false;
+        }
     }
 
     public getMesh(): THREE.Mesh {
@@ -93,52 +100,25 @@ export class Player {
     public getEquipment(): Equipment {
         return this.equipment;
     }
-}
 
-export class PlayerStats {
-    private health: number = 100;
-    private maxHealth: number = 100;
-    private stamina: number = 100;
-    private maxStamina: number = 100;
-    private mana: number = 100;
-    private maxMana: number = 100;
-
-    public update(deltaTime: number): void {
-        // Regenerate stats over time
-        this.stamina = Math.min(this.maxStamina, this.stamina + 10 * deltaTime);
-        this.mana = Math.min(this.maxMana, this.mana + 5 * deltaTime);
+    public updatePosition(position: THREE.Vector3) {
+        this.mesh.position.copy(position);
     }
 
-    public takeDamage(amount: number): void {
-        this.health = Math.max(0, this.health - amount);
+    public move(direction: THREE.Vector3, deltaTime: number) {
+        const moveAmount = direction.multiplyScalar(this.moveSpeed * deltaTime);
+        this.mesh.position.add(moveAmount);
     }
 
-    public useStamina(amount: number): boolean {
-        if (this.stamina >= amount) {
-            this.stamina -= amount;
-            return true;
+    public jump() {
+        if (!this.isJumping) {
+            this.isJumping = true;
+            // Apply jump force through physics
+            const body = this.mesh.userData.physicsBody;
+            if (body) {
+                body.applyImpulse(new CANNON.Vec3(0, this.jumpForce, 0));
+            }
         }
-        return false;
-    }
-
-    public useMana(amount: number): boolean {
-        if (this.mana >= amount) {
-            this.mana -= amount;
-            return true;
-        }
-        return false;
-    }
-
-    public getHealth(): number {
-        return this.health;
-    }
-
-    public getStamina(): number {
-        return this.stamina;
-    }
-
-    public getMana(): number {
-        return this.mana;
     }
 }
 

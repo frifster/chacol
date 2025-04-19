@@ -93,7 +93,7 @@ export class SceneManager {
         this.world.step(1/60);
         
         // Update physics bodies to match their meshes
-        this.physicsManager.update();
+        this.physicsManager.update(delta);
 
         // Render scene
         this.renderer.render(this.scene, this.camera);

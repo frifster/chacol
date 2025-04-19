@@ -1,16 +1,23 @@
 import * as CANNON from 'cannon-es';
 import { World } from 'cannon-es';
 import * as THREE from 'three';
+import { Mesh, Object3D } from 'three';
+import { Player } from './Player';
 
 export class PhysicsManager {
     private world: World;
     private physicsBodies: Map<THREE.Object3D, CANNON.Body>;
     private meshes: Map<CANNON.Body, THREE.Object3D>;
+    private player: Player | null = null;
 
     constructor(world: World) {
         this.world = world;
         this.physicsBodies = new Map();
         this.meshes = new Map();
+    }
+
+    setPlayer(player: Player) {
+        this.player = player;
     }
 
     public createBox(
@@ -81,12 +88,24 @@ export class PhysicsManager {
         return body;
     }
 
-    public update(): void {
-        // Update mesh positions and rotations based on physics bodies
+    public update(deltaTime: number): void {
+        this.world.step(deltaTime);
+        
+        // Update mesh positions to match physics bodies
         this.meshes.forEach((mesh, body) => {
-            mesh.position.copy(body.position as unknown as THREE.Vector3);
-            mesh.quaternion.copy(body.quaternion as unknown as THREE.Quaternion);
+            if (mesh instanceof Mesh) {
+                mesh.position.copy(body.position as any);
+                mesh.quaternion.copy(body.quaternion as any);
+            }
         });
+
+        // Update player position if it exists
+        if (this.player) {
+            const playerBody = this.physicsBodies.get(this.player.getMesh());
+            if (playerBody) {
+                this.player.updatePosition(playerBody.position as any);
+            }
+        }
     }
 
     public removeBody(mesh: THREE.Object3D): void {
@@ -109,5 +128,54 @@ export class PhysicsManager {
 
     public getBody(mesh: THREE.Object3D): CANNON.Body | undefined {
         return this.physicsBodies.get(mesh);
+    }
+
+    addBody(mesh: Object3D, body: CANNON.Body) {
+        this.physicsBodies.set(mesh, body);
+        this.world.addBody(body);
+    }
+
+    createGroundBody(mesh: Mesh, width: number, height: number, depth: number): CANNON.Body {
+        const groundShape = new CANNON.Box(new CANNON.Vec3(width / 2, height / 2, depth / 2));
+        const groundMaterial = new CANNON.Material('groundMaterial');
+        const groundBody = new CANNON.Body({
+            mass: 0, // Static body
+            shape: groundShape,
+            position: new CANNON.Vec3(
+                mesh.position.x,
+                mesh.position.y,
+                mesh.position.z
+            ),
+            material: groundMaterial
+        });
+
+        // Set high friction and restitution for better collision response
+        groundMaterial.friction = 0.5;
+        groundMaterial.restitution = 0.3;
+
+        return groundBody;
+    }
+
+    createPlayerBody(mesh: Mesh, width: number, height: number, depth: number): CANNON.Body {
+        const playerShape = new CANNON.Box(new CANNON.Vec3(width / 2, height / 2, depth / 2));
+        const playerMaterial = new CANNON.Material('playerMaterial');
+        const playerBody = new CANNON.Body({
+            mass: 1,
+            shape: playerShape,
+            position: new CANNON.Vec3(
+                mesh.position.x,
+                mesh.position.y,
+                mesh.position.z
+            ),
+            material: playerMaterial
+        });
+
+        // Set player-specific physics properties
+        playerMaterial.friction = 0.3;
+        playerMaterial.restitution = 0.2;
+        playerBody.linearDamping = 0.5; // Add some damping to prevent sliding
+        playerBody.angularDamping = 0.5;
+
+        return playerBody;
     }
 } 
