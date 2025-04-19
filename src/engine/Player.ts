@@ -14,8 +14,6 @@ export class Player {
     private isGrounded: boolean = false;
     private isJumping: boolean = false;
     private moveForce: number = 10;
-    private rotationSpeed: number = 0.1;
-    private targetRotation: number = 0;
     private initialJumpY: number = 0;
     private maxJumpHeight: number = 5;
 
@@ -68,31 +66,20 @@ export class Player {
     }
 
     public update(deltaTime: number, input: PlayerInput): void {
-        // Handle rotation based on mouse movement
-        if (input.mouseDeltaX !== 0) {
-            this.targetRotation -= input.mouseDeltaX * this.rotationSpeed;
-            this.mesh.rotation.y = this.targetRotation;
-        }
-
-        // Handle movement relative to player's rotation
+        // Handle movement (2D only - left/right)
         const moveDirection = new THREE.Vector3();
         
-        if (input.forward) moveDirection.z -= 1;
-        if (input.backward) moveDirection.z += 1;
         if (input.left) moveDirection.x -= 1;
         if (input.right) moveDirection.x += 1;
 
         if (moveDirection.length() > 0) {
             moveDirection.normalize();
             
-            // Rotate movement direction based on player's rotation
-            moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.targetRotation);
-            
-            // Calculate target velocity
+            // Calculate target velocity (2D only)
             const targetVelocity = new CANNON.Vec3(
                 moveDirection.x * this.moveSpeed,
                 0, // Keep vertical velocity at 0 during movement
-                moveDirection.z * this.moveSpeed
+                0  // No Z-axis movement
             );
 
             // Calculate force needed to reach target velocity
@@ -100,7 +87,7 @@ export class Player {
             const force = new CANNON.Vec3(
                 (targetVelocity.x - currentVelocity.x) * this.moveForce,
                 0, // No vertical force during movement
-                (targetVelocity.z - currentVelocity.z) * this.moveForce
+                0  // No Z-axis force
             );
 
             // Apply force
@@ -112,7 +99,7 @@ export class Player {
                 this.body.position.set(
                     currentPosition.x,
                     this.initialJumpY, // Keep at initial height
-                    currentPosition.z
+                    0  // Keep Z position at 0
                 );
                 this.body.velocity.y = 0; // Reset vertical velocity
             }
@@ -146,8 +133,12 @@ export class Player {
             this.initialJumpY = 0.5; // Reset to ground level
         }
 
-        // Sync mesh position with physics body
-        this.mesh.position.copy(this.body.position as any);
+        // Sync mesh position with physics body (2D only)
+        this.mesh.position.set(
+            this.body.position.x,
+            this.body.position.y,
+            0  // Keep Z position at 0
+        );
         this.mesh.quaternion.copy(this.body.quaternion as any);
     }
 
@@ -168,18 +159,22 @@ export class Player {
     }
 
     public updatePosition(position: THREE.Vector3) {
-        this.mesh.position.copy(position);
+        this.mesh.position.set(position.x, position.y, 0);
     }
 
     public move(direction: THREE.Vector3, deltaTime: number) {
-        const moveAmount = direction.multiplyScalar(this.moveSpeed * deltaTime);
+        const moveAmount = new THREE.Vector3(
+            direction.x * this.moveSpeed * deltaTime,
+            0,
+            0
+        );
         this.mesh.position.add(moveAmount);
     }
 
     public jump() {
         if (!this.isJumping) {
             this.isJumping = true;
-            const jumpForce = new CANNON.Vec3(0, this.jumpForce * 50, 0);
+            const jumpForce = new CANNON.Vec3(0, this.jumpForce * 0.5, 0);
             this.body.applyImpulse(jumpForce, this.body.position);
             this.initialJumpY = this.mesh.position.y;
         }
@@ -249,10 +244,7 @@ export class Equipment {
 }
 
 export interface PlayerInput {
-    forward: boolean;
-    backward: boolean;
     left: boolean;
     right: boolean;
     jump: boolean;
-    mouseDeltaX: number;
 } 

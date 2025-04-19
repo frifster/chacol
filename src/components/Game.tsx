@@ -5,32 +5,19 @@ import { HUD } from './HUD';
 
 export const Game: React.FC = () => {
     const gameEngineRef = useRef<GameEngine | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const [isGameLoaded, setIsGameLoaded] = useState(false);
 
     useEffect(() => {
+        if (!containerRef.current) return;
+
         // Initialize game engine
-        gameEngineRef.current = new GameEngine();
+        gameEngineRef.current = new GameEngine(containerRef.current);
         
-        // Simulate loading time
-        setTimeout(() => {
-            gameEngineRef.current?.start();
-            setIsGameLoaded(true);
-        }, 2000);
-
-        // Game loop
-        let lastTime = performance.now();
-        const gameLoop = (currentTime: number) => {
-            const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
-            lastTime = currentTime;
-
-            if (gameEngineRef.current && isGameLoaded) {
-                gameEngineRef.current.update(deltaTime);
-            }
-
-            requestAnimationFrame(gameLoop);
-        };
-        requestAnimationFrame(gameLoop);
+        // Start the game engine
+        gameEngineRef.current.start();
+        setIsGameLoaded(true);
 
         // Handle ESC key to exit
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -45,15 +32,23 @@ export const Game: React.FC = () => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             if (gameEngineRef.current) {
-                gameEngineRef.current.stop();
+                // Clean up Three.js resources
+                const container = containerRef.current;
+                if (container) {
+                    while (container.firstChild) {
+                        container.removeChild(container.firstChild);
+                    }
+                }
             }
         };
-    }, [navigate, isGameLoaded]);
+    }, [navigate]);
 
     return (
-        <div className="game-container w-full h-full">
-            {/* The game canvas will be automatically added here by Three.js */}
-            {gameEngineRef.current && (
+        <div 
+            ref={containerRef} 
+            className="game-container w-full h-full relative"
+        >
+            {isGameLoaded && gameEngineRef.current && (
                 <HUD 
                     stats={gameEngineRef.current.getPlayer().getStats()} 
                     isGameLoaded={isGameLoaded}

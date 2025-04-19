@@ -47,12 +47,9 @@ export class InputManager {
 
     public getPlayerInput(): PlayerInput {
         return {
-            forward: this.keys.has('w'),
-            backward: this.keys.has('s'),
             left: this.keys.has('a'),
             right: this.keys.has('d'),
-            jump: this.keys.has(' '),
-            mouseDeltaX: this.mouseDelta.x
+            jump: this.keys.has(' ')
         };
     }
 
