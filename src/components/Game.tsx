@@ -30,8 +30,8 @@ export const Game: React.FC = () => {
     }, [navigate]);
 
     return (
-        <div className="absolute inset-0">
-            {/* The game canvas will be automatically added to the body by Three.js */}
+        <div className="game-container absolute inset-0">
+            {/* The game canvas will be automatically added here by Three.js */}
         </div>
     );
 }; 

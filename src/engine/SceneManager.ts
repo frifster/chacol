@@ -28,10 +28,20 @@ export class SceneManager {
         this.camera.lookAt(0, 0, 0);
 
         // Setup renderer
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            alpha: true
+        });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
-        document.body.appendChild(this.renderer.domElement);
+        
+        // Find the game container and append the canvas
+        const gameContainer = document.querySelector('.game-container');
+        if (gameContainer) {
+            gameContainer.appendChild(this.renderer.domElement);
+        } else {
+            console.error('Game container not found');
+        }
 
         // Initialize physics world
         this.world = new World({
@@ -69,7 +79,7 @@ export class SceneManager {
     private animate(): void {
         this.animationFrameId = requestAnimationFrame(this.animate.bind(this));
 
-        // const delta = this.clock.getDelta();
+        const delta = this.clock.getDelta();
         
         // Update physics world
         this.world.step(1/60);
