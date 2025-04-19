@@ -10,7 +10,7 @@ export class Player {
     private inventory: Inventory;
     private equipment: Equipment;
     private moveSpeed: number = 10;
-    private jumpForce: number = 5;
+    private jumpForce: number = 3;
     private isGrounded: boolean = false;
     private isJumping: boolean = false;
     private moveForce: number = 100;
@@ -122,9 +122,14 @@ export class Player {
 
         // Handle jumping
         if (input.jump && this.isGrounded) {
-            const jumpForce = new CANNON.Vec3(0, this.jumpForce * 50, 0);
+            const jumpForce = new CANNON.Vec3(0, this.jumpForce * 15, 0);
             this.body.applyImpulse(jumpForce, this.body.position);
             this.isGrounded = false;
+        }
+
+        // Limit maximum vertical velocity
+        if (Math.abs(this.body.velocity.y) > 10) {
+            this.body.velocity.y = Math.sign(this.body.velocity.y) * 10;
         }
 
         // Sync mesh position with physics body
