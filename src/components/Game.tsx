@@ -74,7 +74,7 @@ export const Game: React.FC = () => {
             ref={containerRef} 
             className="game-container w-full h-full relative"
         >
-            {isGameLoaded && gameEngineRef.current && gameState !== 'over' && (
+            {isGameLoaded && gameEngineRef.current && (
                 <>
                     <HUD 
                         stats={gameEngineRef.current.getPlayer().getStats()} 

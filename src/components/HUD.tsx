@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlayerStats } from '../engine/Player';
+import { PlayerStats } from '../engine/PlayerStats';
 
 interface HUDProps {
     stats: PlayerStats;
